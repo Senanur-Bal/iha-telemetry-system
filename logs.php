@@ -18,8 +18,15 @@ if (isset($_POST['reset_logs'])) {
     exit;
 }
 
-// id üzerinden ters sıralama yapıldı 
-$stmt = $pdo->query("SELECT * FROM telemetry_logs ORDER BY id DESC");
+// Filtreleme parametresini al
+$filter_iha = isset($_GET['iha_id']) ? trim($_GET['iha_id']) : '';
+
+if ($filter_iha !== '') {
+    $stmt = $pdo->prepare("SELECT * FROM telemetry_logs WHERE iha_id = ? ORDER BY id DESC");
+    $stmt->execute([$filter_iha]);
+} else {
+    $stmt = $pdo->query("SELECT * FROM telemetry_logs ORDER BY id DESC");
+}
 $logs = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
@@ -33,9 +40,16 @@ $logs = $stmt->fetchAll(PDO::FETCH_ASSOC);
         .container { max-width: 1200px; margin: auto; background: #1e1e1e; padding: 25px; border-radius: 12px; box-shadow: 0 8px 20px rgba(0,0,0,0.7); }
         h1 { color: #ff5252; text-align: center; margin-bottom: 20px; letter-spacing: 1px; }
         
-        .nav-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
+        .nav-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; flex-wrap: wrap; gap: 15px; }
         .back-btn { background: #333; color: #00e676; padding: 10px 20px; text-decoration: none; border-radius: 6px; font-weight: bold; border: 1px solid #00e676; transition: 0.3s; }
         .back-btn:hover { background: #00e676; color: #121212; }
+
+        .filter-form { display: flex; gap: 10px; align-items: center; }
+        .filter-select { background: #2d2d2d; color: #e0e0e0; border: 1px solid #555; padding: 9px 12px; border-radius: 6px; font-size: 14px; outline: none; }
+        .filter-btn { background: #00b0ff; color: #ffffff; padding: 9px 15px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        .filter-btn:hover { background: #0091ea; }
+        .reset-filter { background: #333; color: #b0bec5; padding: 9px 15px; text-decoration: none; border-radius: 6px; font-weight: bold; border: 1px solid #555; font-size: 14px; }
+        .reset-filter:hover { background: #444; color: #fff; }
 
         .reset-btn { background: #b71c1c; color: #ffcdd2; padding: 10px 20px; border: 1px solid #ff5252; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.3s; }
         .reset-btn:hover { background: #d32f2f; color: #ffffff; }
@@ -59,6 +73,20 @@ $logs = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <div class="nav-container">
         <a href="index.php" class="back-btn">⬅️ Komuta Kontrol Paneline Dön</a>
         
+        <!-- İHA Filtreleme Formu -->
+        <form method="GET" class="filter-form">
+            <select name="iha_id" class="filter-select">
+                <option value="">Tüm İHA'lar (Tümü)</option>
+                <option value="101" <?= $filter_iha == '101' ? 'selected' : '' ?>>İHA-101 (Bayraktar TB2 A)</option>
+                <option value="102" <?= $filter_iha == '102' ? 'selected' : '' ?>>İHA-102 (Akıncı Keşif)</option>
+                <option value="103" <?= $filter_iha == '103' ? 'selected' : '' ?>>İHA-103 (Kamikaze İHA X)</option>
+            </select>
+            <button type="submit" class="filter-btn">Filtrele</button>
+            <?php if ($filter_iha !== ''): ?>
+                <a href="logs.php" class="reset-filter">Sıfırla</a>
+            <?php endif; ?>
+        </form>
+
         <form method="POST" onsubmit="return confirm('Tüm kara kutu loglarını kalıcı olarak silmek istediğinize emin misiniz?');" style="margin: 0;">
             <button type="submit" name="reset_logs" class="reset-btn">🗑️ Kara Kutuyu Sıfırla</button>
         </form>
@@ -93,7 +121,7 @@ $logs = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 <?php endforeach; ?>
             <?php else: ?>
                 <tr>
-                    <td colspan="8" class="empty-msg">Kara kutuda kayıtlı herhangi bir anomali veya hata logu bulunmuyor.</td>
+                    <td colspan="8" class="empty-msg">Bu filtreye uygun kayıtlı herhangi bir anomali logu bulunmuyor.</td>
                 </tr>
             <?php endif; ?>
         </tbody>
