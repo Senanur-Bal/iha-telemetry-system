@@ -8,8 +8,13 @@
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #121212; color: #e0e0e0; margin: 0; padding: 20px; }
         .container { max-width: 1200px; margin: auto; background: #1e1e1e; padding: 25px; border-radius: 12px; box-shadow: 0 8px 20px rgba(0,0,0,0.7); }
-        h1 { color: #00e676; text-align: center; margin-bottom: 25px; letter-spacing: 1px; }
+        h1 { color: #00e676; text-align: center; margin-bottom: 15px; letter-spacing: 1px; }
         
+        /* Log Sayfası Buton Stili */
+        .log-btn-container { text-align: center; margin-bottom: 25px; }
+        .log-btn { background: #b71c1c; color: #ffcdd2; padding: 10px 20px; text-decoration: none; border-radius: 6px; font-weight: bold; border: 1px solid #ff5252; transition: 0.3s; display: inline-block; }
+        .log-btn:hover { background: #d32f2f; color: #ffffff; }
+
         /* Harita Alanı Tasarımı */
         #map { width: 100%; height: 400px; border-radius: 8px; margin-bottom: 25px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
 
@@ -30,6 +35,11 @@
 <div class="container">
     <h1>SAVUNMA SANAYİİ - SÜRÜ İHA C2 KOMUTA KONTROL MERKEZİ</h1>
     
+    <!-- Kara Kutu Logları Raporuna Gidiş Butonu -->
+    <div class="log-btn-container">
+        <a href="logs.php" class="log-btn">📊 Kara Kutu Anomali Loglarını Görüntüle</a>
+    </div>
+
     <!-- Haritanın Görüneceği Alan -->
     <div id="map"></div>
 
