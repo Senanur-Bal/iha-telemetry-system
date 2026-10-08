@@ -10,12 +10,10 @@
         .container { max-width: 1200px; margin: auto; background: #1e1e1e; padding: 25px; border-radius: 12px; box-shadow: 0 8px 20px rgba(0,0,0,0.7); }
         h1 { color: #00e676; text-align: center; margin-bottom: 15px; letter-spacing: 1px; }
         
-        /* Log Sayfası Buton Stili */
         .log-btn-container { text-align: center; margin-bottom: 25px; }
         .log-btn { background: #b71c1c; color: #ffcdd2; padding: 10px 20px; text-decoration: none; border-radius: 6px; font-weight: bold; border: 1px solid #ff5252; transition: 0.3s; display: inline-block; }
         .log-btn:hover { background: #d32f2f; color: #ffffff; }
 
-        /* Harita Alanı Tasarımı */
         #map { width: 100%; height: 400px; border-radius: 8px; margin-bottom: 25px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
 
         .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
@@ -35,16 +33,13 @@
 <div class="container">
     <h1>SAVUNMA SANAYİİ - SÜRÜ İHA C2 KOMUTA KONTROL MERKEZİ</h1>
     
-    <!-- Kara Kutu Logları Raporuna Gidiş Butonu -->
     <div class="log-btn-container">
         <a href="logs.php" class="log-btn">📊 Kara Kutu Anomali Loglarını Görüntüle</a>
     </div>
 
-    <!-- Haritanın Görüneceği Alan -->
     <div id="map"></div>
 
     <div id="ihaContainer" class="grid">
-        <!-- Dinamik İHA kartları buraya gelecek -->
     </div>
 
     <div class="footer-info">
@@ -55,17 +50,16 @@
 <!-- Leaflet JS Kütüphanesi -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <script>
-// Haritayı başlat (Konya merkezli)
 var map = L.map('map').setView([37.8746, 32.4932], 13);
 
-// OpenStreetMap katmanını ekle
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
     attribution: '&copy; OpenStreetMap contributors'
 }).addTo(map);
 
-// İHA Marker'larını tutmak için sözlük
 var markers = {};
+var pathCoordinates = {};
+var polylines = {};
 
 function fetchSwarmTelemetry() {
     fetch('api.php')
@@ -91,20 +85,35 @@ function fetchSwarmTelemetry() {
                 `;
                 container.innerHTML += cardHTML;
 
-                // Harita Üzerindeki Marker İşlemleri
+                if (!pathCoordinates[data.id]) {
+                    pathCoordinates[data.id] = [];
+                }
+                pathCoordinates[data.id].push([data.lat, data.lng]);
+
+                if (pathCoordinates[data.id].length > 30) {
+                    pathCoordinates[data.id].shift();
+                }
+
                 if (markers[data.id]) {
                     markers[data.id].setLatLng([data.lat, data.lng]);
                     markers[data.id].getPopup().setContent(`<b>${data.name}</b><br>İrtifa: ${data.altitude}m<br>Hız: ${data.speed}km/s`);
+                    polylines[data.id].setLatLngs(pathCoordinates[data.id]);
                 } else {
                     let marker = L.marker([data.lat, data.lng]).addTo(map)
                         .bindPopup(`<b>${data.name}</b><br>İrtifa: ${data.altitude}m<br>Hız: ${data.speed}km/s`);
                     markers[data.id] = marker;
+
+                    let polyline = L.polyline(pathCoordinates[data.id], {
+                        color: data.id == 101 ? '#00e676' : (data.id == 102 ? '#ffab40' : '#00b0ff'),
+                        weight: 3,
+                        opacity: 0.7
+                    }).addTo(map);
+                    polylines[data.id] = polyline;
                 }
             });
         });
 }
 
-// Saniyede bir güncelle
 setInterval(fetchSwarmTelemetry, 1000);
 fetchSwarmTelemetry();
 </script>
