@@ -1,49 +1,67 @@
 <?php
-// MySQL Veritabanı Bağlantısı
 $host = 'localhost';
-$username = 'root';
-$password = '';
-$dbname = 'iha_db';
+$db = 'iha_db';
+$user = 'root';
+$pass = '';
 
-$conn = new mysqli($host, $username, $password, $dbname);
-
-if ($conn->connect_error) {
-    die("Veritabanı bağlantı hatası: " . $conn->connect_error);
+try {
+    $pdo = new PDO("mysql:host=$host;dbname=$db;charset=utf8", $user, $pass);
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+} catch (PDOException $e) {
+    die("Veritabanı bağlantı hatası: " . $e->getMessage());
 }
 
-// Logları veritabanından id'ye göre en yeniden eskiye doğru çek
-$sql = "SELECT * FROM telemetry_logs ORDER BY id DESC LIMIT 50";
-$result = $conn->query($sql);
+// Logları sıfırlama isteği geldiyse
+if (isset($_POST['reset_logs'])) {
+    $pdo->exec("DELETE FROM telemetry_logs");
+    header("Location: logs.php");
+    exit;
+}
+
+// id üzerinden ters sıralama yapıldı 
+$stmt = $pdo->query("SELECT * FROM telemetry_logs ORDER BY id DESC");
+$logs = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
 <!DOCTYPE html>
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>İHA Kara Kutu - Anomali ve Log Raporları</title>
+    <title>Kara Kutusu - Anomali ve Hata Raporları</title>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #121212; color: #e0e0e0; margin: 0; padding: 20px; }
         .container { max-width: 1200px; margin: auto; background: #1e1e1e; padding: 25px; border-radius: 12px; box-shadow: 0 8px 20px rgba(0,0,0,0.7); }
         h1 { color: #ff5252; text-align: center; margin-bottom: 20px; letter-spacing: 1px; }
-        .nav-links { text-align: center; margin-bottom: 25px; }
-        .nav-links a { background: #2d2d2d; color: #00e676; padding: 10px 20px; text-decoration: none; border-radius: 6px; font-weight: bold; border: 1px solid #00e676; transition: 0.3s; }
-        .nav-links a:hover { background: #00e676; color: #121212; }
         
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; background: #2d2d2d; border-radius: 8px; overflow: hidden; }
+        .nav-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
+        .back-btn { background: #333; color: #00e676; padding: 10px 20px; text-decoration: none; border-radius: 6px; font-weight: bold; border: 1px solid #00e676; transition: 0.3s; }
+        .back-btn:hover { background: #00e676; color: #121212; }
+
+        .reset-btn { background: #b71c1c; color: #ffcdd2; padding: 10px 20px; border: 1px solid #ff5252; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        .reset-btn:hover { background: #d32f2f; color: #ffffff; }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; background: #2d2d2d; border-radius: 8px; overflow: hidden; }
         th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #444; font-size: 14px; }
         th { background: #333; color: #ff5252; text-transform: uppercase; font-size: 13px; }
         tr:hover { background: #383838; }
-        .badge-danger { background: #b71c1c; color: #ffcdd2; padding: 5px 10px; border-radius: 4px; font-weight: bold; }
-        .footer-info { text-align: center; margin-top: 25px; color: #888; font-size: 13px; }
+        
+        .badge { padding: 5px 10px; border-radius: 4px; font-weight: bold; font-size: 12px; }
+        .danger { background: #b71c1c; color: #ffcdd2; }
+        .warning { background: #e65100; color: #ffe0b2; }
+        .empty-msg { text-align: center; padding: 30px; color: #888; font-size: 16px; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>🛡️ KARA KUTU - ANOMALİ VE KRİTİK LOG RAPORLARI</h1>
+    <h1>KARA KUTU - ANOMALİ VE KRİTİK LOGLAR</h1>
     
-    <div class="nav-links">
-        <a href="index.php">⬅️ Canlı C2 Komuta Kontrol Paneline Dön</a>
+    <div class="nav-container">
+        <a href="index.php" class="back-btn">⬅️ Komuta Kontrol Paneline Dön</a>
+        
+        <form method="POST" onsubmit="return confirm('Tüm kara kutu loglarını kalıcı olarak silmek istediğinize emin misiniz?');" style="margin: 0;">
+            <button type="submit" name="reset_logs" class="reset-btn">🗑️ Kara Kutuyu Sıfırla</button>
+        </form>
     </div>
 
     <table>
@@ -51,43 +69,35 @@ $result = $conn->query($sql);
             <tr>
                 <th>Log ID</th>
                 <th>İHA ID</th>
-                <th>İrtifa (m)</th>
-                <th>Hız (km/s)</th>
+                <th>İrtifa</th>
+                <th>Hız</th>
                 <th>Batarya</th>
                 <th>Sıcaklık</th>
-                <th>Durum Mesajı / Anomali</th>
-                <th>Zaman Damgası</th>
+                <th>Durum Mesajı</th>
+                <th>Kayıt Zamanı</th>
             </tr>
         </thead>
         <tbody>
-            <?php
-            if ($result && $result->num_rows > 0) {
-                while($row = $result->fetch_assoc()) {
-                    // Veritabanındaki olası zaman alanı isimlerini güvenli şekilde kontrol ediyoruz
-                    $logTime = isset($row['log_time']) ? $row['log_time'] : (isset($row['tarih']) ? $row['tarih'] : 'Kayıt Zamanı');
-
-                    echo "<tr>";
-                    echo "<td>#" . $row['id'] . "</td>";
-                    echo "<td><strong>İHA-" . $row['iha_id'] . "</strong></td>";
-                    echo "<td>" . $row['altitude'] . " m</td>";
-                    echo "<td>" . $row['speed'] . " km/s</td>";
-                    echo "<td>%" . $row['battery'] . "</td>";
-                    echo "<td>" . $row['temp'] . " °C</td>";
-                    echo "<td><span class='badge-danger'>" . htmlspecialchars($row['status_message']) . "</span></td>";
-                    echo "<td>" . $logTime . "</td>";
-                    echo "</tr>";
-                }
-            } else {
-                echo "<tr><td colspan='8' style='text-align: center; color: #888;'>Henüz veritabanına kaydedilmiş bir anomali/kara kutu kaydı bulunmuyor. Sistem güvenli!</td></tr>";
-            }
-            $conn->close();
-            ?>
+            <?php if (count($logs) > 0): ?>
+                <?php foreach ($logs as $log): ?>
+                    <tr>
+                        <td>#<?= htmlspecialchars($log['id']) ?></td>
+                        <td><strong>İHA-<?= htmlspecialchars($log['iha_id']) ?></strong></td>
+                        <td><?= htmlspecialchars($log['altitude']) ?> m</td>
+                        <td><?= htmlspecialchars($log['speed']) ?> km/s</td>
+                        <td>%<?= htmlspecialchars($log['battery']) ?></td>
+                        <td><?= htmlspecialchars($log['temp']) ?> °C</td>
+                        <td><span class="badge <?= strpos($log['status_message'], 'KRİTİK') !== false ? 'danger' : 'warning' ?>"><?= htmlspecialchars($log['status_message']) ?></span></td>
+                        <td><?= htmlspecialchars($log['created_at'] ?? 'Bilinmiyor') ?></td>
+                    </tr>
+                <?php endforeach; ?>
+            <?php else: ?>
+                <tr>
+                    <td colspan="8" class="empty-msg">Kara kutuda kayıtlı herhangi bir anomali veya hata logu bulunmuyor.</td>
+                </tr>
+            <?php endif; ?>
         </tbody>
     </table>
-
-    <div class="footer-info">
-        🔒 MySQL Blackbox Telemetry Logging System | Savunma Sanayii C2 Protokolü
-    </div>
 </div>
 
 </body>
